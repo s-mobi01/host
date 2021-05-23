@@ -5,6 +5,7 @@
 package sysfs
 
 import (
+	"errors"
 	"testing"
 
 	"periph.io/x/conn/v3/i2c/i2creg"
@@ -22,6 +23,12 @@ func TestI2C_faked(t *testing.T) {
 	bus := I2C{f: &ioctlClose{}, busNumber: 24}
 	if s := bus.String(); s != "I2C24" {
 		t.Fatal(s)
+	}
+	if bus.hasRead {
+		t.Fatal("hasRead")
+	}
+	if bus.brokenRead {
+		t.Fatal("should not have brokenRead")
 	}
 	if bus.Tx(0x401, nil, nil) == nil {
 		t.Fatal("empty Tx")
@@ -41,11 +48,63 @@ func TestI2C_faked(t *testing.T) {
 	if bus.SetSpeed(0) == nil {
 		t.Fatal("0 is invalid")
 	}
-	if bus.SetSpeed(physic.Hertz) == nil {
-		t.Fatal("can't set speed")
+	if bus.SetSpeed(100*physic.MegaHertz+1) == nil {
+		t.Fatal(">100MHz is invalid")
+	}
+	if err := bus.SetSpeed(physic.KiloHertz); err == nil || err.Error() != "sysfs-i2c: not supported" {
+		t.Fatal(err)
+	}
+	defer func() {
+		drvI2C.setSpeed = nil
+	}()
+	called := false
+	if err := I2CSetSpeedHook(func(f physic.Frequency) error {
+		called = true
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := bus.SetSpeed(physic.KiloHertz); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("i2c speed hook should have been called")
 	}
 	bus.SCL()
 	bus.SDA()
+	if !bus.hasRead {
+		t.Fatal("hasRead")
+	}
+	if bus.brokenRead {
+		t.Fatal("should not have brokenRead")
+	}
+	if err := bus.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestI2C_read_fallback(t *testing.T) {
+	bus := I2C{f: &ioctlClose{ioctlErr: errors.New("ioctl err")}, busNumber: 24}
+	if err := bus.Tx(1, nil, []byte{0}); err != nil {
+		t.Fatal(err)
+	}
+	// The second time, a different code path is used.
+	if err := bus.Tx(1, nil, []byte{0}); err != nil {
+		t.Fatal(err)
+	}
+	if !bus.brokenRead {
+		t.Fatal("should have brokenRead")
+	}
+	if err := bus.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestI2C_read_no_fallback(t *testing.T) {
+	bus := I2C{f: &ioctlClose{ioctlErr: errors.New("ioctl err"), readErr: errors.New("read err")}, busNumber: 24}
+	if bus.Tx(1, nil, []byte{0}) == nil {
+		t.Fatal("expected failure")
+	}
 	if err := bus.Close(); err != nil {
 		t.Fatal(err)
 	}

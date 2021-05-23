@@ -32,6 +32,7 @@ func fileIOOpenDefault(path string, flag int) (fileIO, error) {
 
 type ioctlCloser interface {
 	io.Closer
+	io.Reader
 	fs.Ioctler
 }
 

@@ -34,11 +34,19 @@ func fileIOOpenPanic(path string, flag int) (fileIO, error) {
 
 type ioctlClose struct {
 	ioctlErr error
+	readErr  error
 	closeErr error
 }
 
 func (i *ioctlClose) Ioctl(op uint, data uintptr) error {
 	return i.ioctlErr
+}
+
+func (i *ioctlClose) Read(data []byte) (int, error) {
+	if i.readErr == nil {
+		return 1, nil
+	}
+	return 0, i.readErr
 }
 
 func (i *ioctlClose) Close() error {

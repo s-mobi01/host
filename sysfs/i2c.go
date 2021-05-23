@@ -67,10 +67,12 @@ type I2C struct {
 	f         ioctlCloser
 	busNumber int
 
-	mu  sync.Mutex // In theory the kernel probably has an internal lock but not taking any chance.
-	fn  functionality
-	scl gpio.PinIO
-	sda gpio.PinIO
+	mu         sync.Mutex // In theory the kernel probably has an internal lock but not taking any chance.
+	fn         functionality
+	scl        gpio.PinIO
+	sda        gpio.PinIO
+	hasRead    bool
+	brokenRead bool
 }
 
 // Close closes the handle to the I²C driver. It is not a requirement to close
@@ -121,7 +123,24 @@ func (i *I2C) Tx(addr uint16, w, r []byte) error {
 	pp := uintptr(unsafe.Pointer(&p))
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	if err := i.f.Ioctl(ioctlRdwr, pp); err != nil {
+	var err error
+	if len(w) != 0 {
+		err = i.f.Ioctl(ioctlRdwr, pp)
+	} else {
+		if !i.brokenRead {
+			err = i.f.Ioctl(ioctlRdwr, pp)
+		}
+		if i.brokenRead || (err != nil && !i.hasRead) {
+			// Some drivers are deeply broken and do not work well with the IOCTL,
+			// fallback to a read() call.
+			if _, err = i.f.Read(r); err == nil {
+				i.brokenRead = true
+			}
+		}
+		i.hasRead = true
+	}
+
+	if err != nil {
 		return fmt.Errorf("sysfs-i2c: %v", err)
 	}
 	return nil
