@@ -38,6 +38,23 @@ func Nanospin(d time.Duration) {
 	}
 }
 
+// SetHighPriority sets the current process and/or thread as high/realtime
+// priority.
+//
+// It is implemented for Linux, macOS and Windows. This requires super user
+// rights (root or administrator) to succeed.
+//
+// Use with care!
+//
+// Systemd
+//
+// For process running as a systemd service, set in the .service file:
+//
+//   LimitRTPRIO=infinity.
+func SetHighPriority() error {
+	return setHighPriority()
+}
+
 //
 
 var (

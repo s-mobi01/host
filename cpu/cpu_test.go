@@ -44,6 +44,12 @@ func TestNanospin(t *testing.T) {
 	nanospinTime(time.Microsecond)
 }
 
+func TestSetHighPriority(t *testing.T) {
+	// Ignore the result, do not do anything else. It may fail if not running as
+	// root, succeed but in this case we want it to terminate ASAP.
+	_ = SetHighPriority()
+}
+
 //
 
 func init() {

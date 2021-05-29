@@ -7,6 +7,7 @@ module periph.io/x/host/v3
 go 1.13
 
 require (
+	golang.org/x/sys v0.0.0-20210525143221-35b2ab0089ea
 	periph.io/x/conn/v3 v3.6.8
 	periph.io/x/d2xx v0.0.3
 )

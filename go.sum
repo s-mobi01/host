@@ -1,3 +1,5 @@
+golang.org/x/sys v0.0.0-20210525143221-35b2ab0089ea h1:+WiDlPBBaO+h9vPNZi8uJ3k4BkKQB7Iow3aqwHVA5hI=
+golang.org/x/sys v0.0.0-20210525143221-35b2ab0089ea/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 periph.io/x/conn/v3 v3.6.8 h1:fnNSwSoKPzpoLOSxml70EInaP6YrrqcucP3KDfNxpmU=
 periph.io/x/conn/v3 v3.6.8/go.mod h1:3OD27w9YVa5DS97VsUxsPGzD9Qrm5Ny7cF5b6xMMIWg=
 periph.io/x/d2xx v0.0.3 h1:BE8XcIdxabu9ZzAr1UXxSz88T9Txki6Xyo8aJ1qZvks=
