@@ -119,15 +119,28 @@ func (d *i2cBus) setupI2C(pullUp bool) error {
 	f := 400 * physic.KiloHertz
 	clk := ((30 * physic.MegaHertz / f) - 1) * 2 / 3
 
-	buf := [4 + 3]byte{
-		clock3Phase,
-		clock30MHz, byte(clk), byte(clk >> 8),
-	}
-	cmd := buf[:4]
-	if !d.pullUp {
-		// TODO(maruel): Do not mess with other GPIOs tristate.
-		cmd = append(cmd, dataTristate, 7, 0)
-	}
+	var cmd		[]byte
+	cmd = append(cmd,
+		clock30MHz,              // 0x8A; Disable clock divide-by-5 for 60Mhz master clock
+		clockNormal,             // 0x97; Ensure adaptive clocking is off
+		clock3Phase,             // 0x8C; Enable 3 phase data clocking, data valid on both clock edges for I2C
+		dataTristate,            // 0x9E; Enable drive-zero mode on the lines used for I2C ...
+		0x07,                    // 0x07; ... on the bits AD0, 1 and 2 of the lower port...
+		0x00,                    // 0x00; ...not required on the upper port AC 0-7
+		internalLoopbackDisable, // 0x85; Ensure internal loopback is off
+	)
+
+	cmd = append(cmd,
+		clockSetDivisor,
+		byte(clk),
+		byte(clk >> 8),
+	)
+
+	//cmd := buf[:4]
+	//if !d.pullUp {
+	//	// TODO(maruel): Do not mess with other GPIOs tristate.
+	//	cmd = append(cmd, dataTristate, 7, 0)
+	//}
 	if _, err := d.f.h.Write(cmd); err != nil {
 		return err
 	}
@@ -172,7 +185,8 @@ func (d *i2cBus) setI2CLinesIdle() error {
 func (d *i2cBus) setI2CStart() error {
 	// TODO(maruel): d.pullUp
 	dir := d.f.dbus.direction
-	v := d.f.dbus.value
+	//v := d.f.dbus.value
+	v := byte(0x00)
 	// Assumes last setup was d.setI2CLinesIdle(), e.g. D0 and D1 are high, so
 	// skip this.
 	//
@@ -187,6 +201,9 @@ func (d *i2cBus) setI2CStart() error {
 		gpioSetD, v, dir,
 		gpioSetD, v, dir,
 		gpioSetD, v, dir,
+		gpioSetD, v, dir,
+
+		gpioSetC, 0xFB, 0x40,	//LED setting?
 	}
 	_, err := d.f.h.Write(cmd[:])
 	return err
@@ -227,7 +244,8 @@ func (d *i2cBus) setI2CStop() error {
 func (d *i2cBus) writeBytes(w []byte) error {
 	// TODO(maruel): d.pullUp
 	dir := d.f.dbus.direction
-	v := d.f.dbus.value
+	//v := d.f.dbus.value
+	v := byte(0x00)
 	// TODO(maruel): WAT?
 	if err := d.f.h.Flush(); err != nil {
 		return err
@@ -237,10 +255,33 @@ func (d *i2cBus) writeBytes(w []byte) error {
 	cmd := [...]byte{
 		// Data out, the 0 will be replaced with the byte.
 		dataOut | dataOutFall, 0, 0, 0,
+
 		// Set back to idle.
-		gpioSetD, v | i2cSCL | i2cSDAOut, dir,
+		//gpioSetD, v | i2cSCL | i2cSDAOut, dir,
+		gpioSetD, v | i2cSDAOut, dir,
+		gpioSetD, v | i2cSDAOut, dir,
+		gpioSetD, v | i2cSDAOut, dir,
+		gpioSetD, v | i2cSDAOut, dir,
+
 		// Read ACK/NAK.
 		dataIn | dataBit, 0,
+		//flush,
+
+		gpioSetD, v, dir,
+		gpioSetD, v, dir,
+		gpioSetD, v, dir,
+		gpioSetD, v, dir,
+
+		gpioSetD, v | i2cSCL, dir,
+		gpioSetD, v | i2cSCL, dir,
+		gpioSetD, v | i2cSCL, dir,
+		gpioSetD, v | i2cSCL, dir,
+
+		gpioSetD, v | i2cSCL | i2cSDAOut, dir,
+		gpioSetD, v | i2cSCL | i2cSDAOut, dir,
+		gpioSetD, v | i2cSCL | i2cSDAOut, dir,
+		gpioSetD, v | i2cSCL | i2cSDAOut, dir,
+
 		flush,
 	}
 	for _, c := range w {
@@ -251,7 +292,10 @@ func (d *i2cBus) writeBytes(w []byte) error {
 		if _, err := d.f.h.ReadAll(context.Background(), r[:]); err != nil {
 			return err
 		}
-		if r[0]&1 == 0 {
+		//if r[0]&1 == 0 {
+		//	return errors.New("got NAK")
+		//}
+		if ((r[0] & 0x01) != 0) {
 			return errors.New("got NAK")
 		}
 	}
