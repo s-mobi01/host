@@ -84,7 +84,7 @@ func (d *i2cBus) Tx(addr uint16, w, r []byte) error {
 	var err error
 
 	byWrite = append(byWrite, d.address_byte(addr, false))
-	if len(w) != 0 {
+	if (len(w) != 0) {
 		byWrite = append(byWrite, w...)
 	}
 
@@ -92,13 +92,7 @@ func (d *i2cBus) Tx(addr uint16, w, r []byte) error {
 	cmdFull = append(cmdFull, cmd...)
 	iReadCnt = len(byWrite)
 
-	//if nil != err {
-		//d.setI2CStop()
-		//d.setI2CLinesIdle()
-	//	return err
-	//}
-
-	if (len(r) != 0) && (len(w) != 0) { // len(w)はレジスタアドレス指定済みを判定するため
+	if ((len(r) != 0) && (len(w) != 0)) { // len(w)はレジスタアドレス指定済みを判定するため
 		cmd     = d.setI2CStop()
 		cmdFull = append(cmdFull, cmd...)
 
@@ -108,28 +102,19 @@ func (d *i2cBus) Tx(addr uint16, w, r []byte) error {
 		cmd     = d.setI2CStart()
 		cmdFull = append(cmdFull, cmd...)
 
-		byRead = append(byRead, d.address_byte(addr, true))
-		cmd     = d.setI2CWriteBytes(byRead)
-		cmdFull = append(cmdFull, cmd...)
+		byRead   = append(byRead, d.address_byte(addr, true))
+		cmd      = d.setI2CWriteBytes(byRead)
+		cmdFull  = append(cmdFull, cmd...)
 		iReadCnt += len(byRead)
 
-		cmd     = d.setI2CReadBytes(len(r))
-		cmdFull = append(cmdFull, cmd...)
+		cmd      = d.setI2CReadBytes(len(r))
+		cmdFull  = append(cmdFull, cmd...)
 		iReadCnt += len(r)
 	}
 
 	cmd     = d.setI2CStop()
 	cmdFull = append(cmdFull, cmd...)
 
-	// ↓ defer化
-	//if err = d.setI2CStop(); err != nil {
-	//	return err
-	//}
-
-	// ↓ defer化
-	//if err = d.setI2CLinesIdle(); err != nil {
-	//	return err
-	//}
 	err = d.transactionEnd(cmdFull, iReadCnt, r)
 	if (nil != err){
 		return err
@@ -225,7 +210,7 @@ func (d *i2cBus) setI2CLinesIdle() ([]byte) {
 	const mask = 0xFF &^ (i2cSCL | i2cSDAOut | i2cSDAIn)
 	// TODO(maruel): d.pullUp
 	d.f.dbus.direction = d.f.dbus.direction&mask | i2cSCL | i2cSDAOut
-	d.f.dbus.value = d.f.dbus.value & mask
+	//d.f.dbus.value = d.f.dbus.value & mask
 	cmd := []byte{
 		//gpioSetD, d.f.dbus.value | i2cSCL | i2cSDAOut, d.f.dbus.direction,
 		gpioSetD, i2cSCL | i2cSDAOut, d.f.dbus.direction,
@@ -246,22 +231,24 @@ func (d *i2cBus) setI2CStart() ([]byte) {
 	// TODO(maruel): d.pullUp
 	dir := d.f.dbus.direction
 	//v := d.f.dbus.value
-	v := byte(0x00)
 	// Assumes last setup was d.setI2CLinesIdle(), e.g. D0 and D1 are high, so
 	// skip this.
 	//
 	// Runs the command 4 times as a way to delay execution.
 	cmd := []byte{
 		// SCL high, SDA low for 600ns
-		gpioSetD, v | i2cSCL, dir,
-		gpioSetD, v | i2cSCL, dir,
-		gpioSetD, v | i2cSCL, dir,
-		gpioSetD, v | i2cSCL, dir,
+		//gpioSetD, v | i2cSCL, dir,
+		gpioSetD, i2cSCL, dir,
+		gpioSetD, i2cSCL, dir,
+		gpioSetD, i2cSCL, dir,
+		gpioSetD, i2cSCL, dir,
+
 		// SCL low, SDA low
-		gpioSetD, v, dir,
-		gpioSetD, v, dir,
-		gpioSetD, v, dir,
-		gpioSetD, v, dir,
+		//gpioSetD, v, dir,
+		gpioSetD, 0x00, dir,
+		gpioSetD, 0x00, dir,
+		gpioSetD, 0x00, dir,
+		gpioSetD, 0x00, dir,
 
 		//gpioSetC, 0xFB, 0x40,	//LED setting?
 	}
@@ -277,29 +264,30 @@ func (d *i2cBus) setI2CStop() ([]byte) {
 	// TODO(maruel): d.pullUp
 	dir := d.f.dbus.direction
 	//v := d.f.dbus.value
-	v := byte(0x00)
 	// Runs the command 4 times as a way to delay execution.
 	cmd := []byte{
 		// SCL low, SDA low
-		gpioSetD, v, dir,
-		gpioSetD, v, dir,
-		gpioSetD, v, dir,
-		gpioSetD, v, dir,
-		// SCL high, SDA low
-		gpioSetD, v | i2cSCL, dir,
-		gpioSetD, v | i2cSCL, dir,
-		gpioSetD, v | i2cSCL, dir,
-		gpioSetD, v | i2cSCL, dir,
-		// SCL high, SDA high
-		gpioSetD, v | i2cSCL | i2cSDAOut, dir,
-		gpioSetD, v | i2cSCL | i2cSDAOut, dir,
-		gpioSetD, v | i2cSCL | i2cSDAOut, dir,
-		gpioSetD, v | i2cSCL | i2cSDAOut, dir,
+		//gpioSetD, v, dir,
+		gpioSetD, 0x00, dir,
+		gpioSetD, 0x00, dir,
+		gpioSetD, 0x00, dir,
+		gpioSetD, 0x00, dir,
 
-//		flush,
+		// SCL high, SDA low
+		//gpioSetD, v | i2cSCL, dir,
+		gpioSetD, i2cSCL, dir,
+		gpioSetD, i2cSCL, dir,
+		gpioSetD, i2cSCL, dir,
+		gpioSetD, i2cSCL, dir,
+
+		// SCL high, SDA high
+		//gpioSetD, v | i2cSCL | i2cSDAOut, dir,
+		gpioSetD, i2cSCL | i2cSDAOut, dir,
+		gpioSetD, i2cSCL | i2cSDAOut, dir,
+		gpioSetD, i2cSCL | i2cSDAOut, dir,
+		gpioSetD, i2cSCL | i2cSDAOut, dir,
 	}
-//	_, err := d.f.h.Write(cmd[:])
-//	return err
+
 	return cmd
 }
 
@@ -307,13 +295,7 @@ func (d *i2cBus) setI2CWriteBytes(w []byte) ([]byte) {
 	// TODO(maruel): d.pullUp
 	dir := d.f.dbus.direction
 	//v := d.f.dbus.value
-	v := byte(0x00)
-	// TODO(maruel): WAT?
-	//if err := d.f.h.Flush(); err != nil {
-	//	return err
-	//}
 
-	//readBuff := make([]byte, len(w))
 	var cmdfull []byte
 
 	// TODO(maruel): Implement both with and without NAK check.
@@ -324,58 +306,21 @@ func (d *i2cBus) setI2CWriteBytes(w []byte) ([]byte) {
 
 	cmd2 := []byte{
 		// Set back to idle.
-		//gpioSetD, v | i2cSCL | i2cSDAOut, dir,
-		gpioSetD, v | i2cSDAOut, dir,
-		gpioSetD, v | i2cSDAOut, dir,
-		gpioSetD, v | i2cSDAOut, dir,
-		gpioSetD, v | i2cSDAOut, dir,
+		//gpioSetD, v | i2cSDAOut, dir,
+		gpioSetD, i2cSDAOut, dir,
+		gpioSetD, i2cSDAOut, dir,
+		gpioSetD, i2cSDAOut, dir,
+		gpioSetD, i2cSDAOut, dir,
 
 		// Read ACK/NAK.
 		dataIn | dataBit, 0,
 	}
-
-	// setI2CStop 相当
-	//cmd3 := []byte{
-		//gpioSetD, v, dir,
-		//gpioSetD, v, dir,
-		//gpioSetD, v, dir,
-		//gpioSetD, v, dir,
-
-		//gpioSetD, v | i2cSCL, dir,
-		//gpioSetD, v | i2cSCL, dir,
-		//gpioSetD, v | i2cSCL, dir,
-		//gpioSetD, v | i2cSCL, dir,
-
-		//gpioSetD, v | i2cSCL | i2cSDAOut, dir,
-		//gpioSetD, v | i2cSCL | i2cSDAOut, dir,
-		//gpioSetD, v | i2cSCL | i2cSDAOut, dir,
-		//gpioSetD, v | i2cSCL | i2cSDAOut, dir,
-
-		//flush,
-	//}
 
 	for _, c := range w {
 		cmdfull = append(cmdfull, cmd1...)
 		cmdfull = append(cmdfull, c)
 		cmdfull = append(cmdfull, cmd2...)
 	}
-	//cmdfull = append(cmdfull, cmd3...)
-
-	//if _, err := d.f.h.Write(cmdfull[:]); err != nil {
-	//	return err
-	//}
-	//if _, err := d.f.h.ReadAll(context.Background(), readBuff[:]); err != nil {
-	//	return err
-	//}
-	//if r[0]&1 == 0 {
-	//	return errors.New("got NAK")
-	//}
-
-	//for _, rcv := range readBuff {
-	//	if (rcv & 0x01) != 0 {
-	//		return errors.New("got NAK")
-	//	}
-	//}
 
 	return cmdfull
 }
@@ -384,18 +329,6 @@ func (d *i2cBus) setI2CReadBytes(setCnt int) ([]byte) {
 	// TODO(maruel): d.pullUp
 	dir := d.f.dbus.direction
 	//v := d.f.dbus.value
-	v := byte(0x00)
-
-	//cmd := [...]byte{
-	//// Read 8 bits.
-	//dataIn | dataBit, 7,
-	//// Send ACK/NAK.
-	//dataOut | dataOutFall | dataBit, 0, 0,
-	//// Set back to idle.
-	//gpioSetD, v | i2cSCL | i2cSDAOut, dir,
-	//// Force read buffer flush. This is only necessary if NAK are not ignored.
-	//flush,
-	//}
 
 	cmd1 := []byte{
 		// Read 8 bits.
@@ -409,38 +342,31 @@ func (d *i2cBus) setI2CReadBytes(setCnt int) ([]byte) {
 	cmd2 := []byte{
 		// Set back to idle.
 		//gpioSetD, v | i2cSCL | i2cSDAOut, dir,	// 0x80, 0x03, 0x03
-		gpioSetD, v | i2cSDAOut, dir,	// 0x80, 0x02, 0x03
+		//gpioSetD, v | i2cSDAOut, dir,	// 0x80, 0x02, 0x03
+		gpioSetD, i2cSDAOut, dir,		// 0x80, 0x02, 0x03
 		// Force read buffer flush. This is only necessary if NAK are not ignored.
 	}
 
-	//cmd3 := []byte{
-	//	flush,
-	//}
-
 	var cmdfull []byte
+
 	for iCnt := 0; iCnt < setCnt; iCnt ++ {
 		cmdfull = append(cmdfull, cmd1...)
-		if iCnt != (setCnt - 1) { // 最終データでないか?
+		if (iCnt != (setCnt - 1)) { // 最終データでないか?
 			cmdfull = append(cmdfull, 0x00) // ACK
 		} else {
 			cmdfull = append(cmdfull, 0xFF) // NAK (0x80?)
 		}
 		cmdfull = append(cmdfull, cmd2...)
 	}
-	//cmdfull = append(cmdfull, cmd3...)
 
-	//if _, err := d.f.h.Write(cmdfull[:]); err != nil {
-	//	return err
-	//}
-	//if _, err := d.f.h.ReadAll(context.Background(), r[:]); err != nil {
-	//	return err
-	//}
 	return cmdfull
 }
 
 func (d *i2cBus) transactionEnd(w []byte, readCnt int, r []byte) (error) {
 	// TODO(maruel): WAT?
-	if err := d.f.h.Flush(); err != nil {
+	var	err		error
+	err = d.f.h.Flush()
+	if (nil != err) {
 		return err
 	}
 
@@ -450,15 +376,15 @@ func (d *i2cBus) transactionEnd(w []byte, readCnt int, r []byte) (error) {
 	cmdfull = append(cmdfull, w...)
 	cmdfull = append(cmdfull, flush)
 
-	if _, err := d.f.h.Write(cmdfull[:]); err != nil {
+	_, err = d.f.h.Write(cmdfull[:])
+	if (nil != err) {
 		return err
 	}
-	if _, err := d.f.h.ReadAll(context.Background(), readBuff[:]); err != nil {
+
+	_, err = d.f.h.ReadAll(context.Background(), readBuff[:])
+	if (nil != err) {
 		return err
 	}
-	//if r[0]&1 == 0 {
-	//	return errors.New("got NAK")
-	//}
 
 	// verify acks
 	var	iCnt		int
@@ -468,6 +394,7 @@ func (d *i2cBus) transactionEnd(w []byte, readCnt int, r []byte) (error) {
 		}
 	}
 
+	// set Recv Data
 	for iCnt = 0; iCnt < len(r); iCnt ++ {
 		r[iCnt] = readBuff[(readCnt - len(r)) + iCnt]
 	}
@@ -478,7 +405,7 @@ func (d *i2cBus) transactionEnd(w []byte, readCnt int, r []byte) (error) {
 func (d *i2cBus) address_byte(uiAddr uint16, bRead bool) byte {
 	var byAddr byte
 
-	if bRead == true {
+	if (bRead == true) {
 		byAddr = byte((uiAddr << 1) | 0x01)
 	} else {
 		byAddr = byte((uiAddr << 1) & 0xFE)
